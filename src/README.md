@@ -12,6 +12,8 @@ A FastAPI application that enables Slalom consultants to register their capabili
 - Register consultant expertise and availability
 - Track skill levels and certifications
 - Manage capability capacity and team assignments
+- Practice lead / consultant authentication and role-based permissions
+- Consultant self-registration requests with practice lead approval
 
 ## Getting Started
 
@@ -39,6 +41,23 @@ A FastAPI application that enables Slalom consultants to register their capabili
 | GET    | `/capabilities`                                                   | Get all capabilities with details and current consultant assignments |
 | POST   | `/capabilities/{capability_name}/register?email=consultant@slalom.com` | Register consultant for a capability                     |
 | DELETE | `/capabilities/{capability_name}/unregister?email=consultant@slalom.com` | Unregister consultant from a capability              |
+| POST   | `/auth/login`                                                     | Authenticate a user and start a session                             |
+| POST   | `/auth/logout`                                                    | End the current session                                              |
+| GET    | `/auth/me`                                                        | Return current authenticated user                                    |
+| GET    | `/registration-requests`                                          | List pending registration requests (practice lead only)             |
+| POST   | `/registration-requests/{capability_name}/approve?email=user@slalom.com` | Approve a consultant request (practice lead only)      |
+| POST   | `/registration-requests/{capability_name}/reject?email=user@slalom.com` | Reject a consultant request (practice lead only)       |
+
+## Demo Accounts
+
+Credentials are stored in `src/practice_leads.json` as PBKDF2 password hashes.
+
+- Practice lead
+   - Username: `practice.lead`
+   - Password: `LeadPass123!`
+- Consultant
+   - Username: `consultant.user`
+   - Password: `Consultant123!`
 
 ## Data Model
 

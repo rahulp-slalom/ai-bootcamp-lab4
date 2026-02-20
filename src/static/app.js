@@ -3,6 +3,74 @@ document.addEventListener("DOMContentLoaded", () => {
   const capabilitySelect = document.getElementById("capability");
   const registerForm = document.getElementById("register-form");
   const messageDiv = document.getElementById("message");
+  const emailInput = document.getElementById("email");
+
+  const authToggleButton = document.getElementById("auth-toggle-btn");
+  const authUserBadge = document.getElementById("auth-user");
+  const logoutButton = document.getElementById("logout-btn");
+
+  const loginModal = document.getElementById("login-modal");
+  const loginCloseButton = document.getElementById("login-close-btn");
+  const loginForm = document.getElementById("login-form");
+  const loginUsername = document.getElementById("login-username");
+  const loginPassword = document.getElementById("login-password");
+
+  let currentUser = null;
+
+  function showMessage(text, type) {
+    messageDiv.textContent = text;
+    messageDiv.className = type;
+    messageDiv.classList.remove("hidden");
+    setTimeout(() => {
+      messageDiv.classList.add("hidden");
+    }, 5000);
+  }
+
+  function openLoginModal() {
+    loginModal.classList.remove("hidden");
+  }
+
+  function closeLoginModal() {
+    loginModal.classList.add("hidden");
+    loginForm.reset();
+  }
+
+  function updateAuthUI() {
+    if (currentUser) {
+      authToggleButton.textContent = "🔐 Switch User";
+      authUserBadge.textContent = `${currentUser.username} (${currentUser.role})`;
+      authUserBadge.classList.remove("hidden");
+      logoutButton.classList.remove("hidden");
+      registerForm.querySelector("button[type='submit']").disabled = false;
+
+      if (currentUser.role === "consultant") {
+        emailInput.value = currentUser.email;
+        emailInput.readOnly = true;
+      } else {
+        emailInput.readOnly = false;
+      }
+    } else {
+      authToggleButton.textContent = "🔐 Login";
+      authUserBadge.classList.add("hidden");
+      logoutButton.classList.add("hidden");
+      registerForm.querySelector("button[type='submit']").disabled = true;
+      emailInput.readOnly = false;
+      emailInput.value = "";
+    }
+  }
+
+  async function fetchCurrentUser() {
+    try {
+      const response = await fetch("/auth/me");
+      const data = await response.json();
+      currentUser = data.user;
+      updateAuthUI();
+    } catch (error) {
+      currentUser = null;
+      updateAuthUI();
+      console.error("Error fetching auth state:", error);
+    }
+  }
 
   // Function to fetch capabilities from API
   async function fetchCapabilities() {
@@ -12,6 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Clear loading message
       capabilitiesList.innerHTML = "";
+      capabilitySelect.innerHTML = "<option value=''>-- Select a capability --</option>";
 
       // Populate capabilities list
       Object.entries(capabilities).forEach(([name, details]) => {
@@ -30,7 +99,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 ${details.consultants
                   .map(
                     (email) =>
-                      `<li><span class="consultant-email">${email}</span><button class="delete-btn" data-capability="${name}" data-email="${email}">❌</button></li>`
+                      `<li>
+                        <span class="consultant-email">${email}</span>
+                        ${
+                          currentUser && currentUser.role === "practice_lead"
+                            ? `<button class="delete-btn" data-capability="${name}" data-email="${email}">❌</button>`
+                            : ""
+                        }
+                      </li>`
                   )
                   .join("")}
               </ul>
@@ -71,6 +147,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Handle unregister functionality
   async function handleUnregister(event) {
+    if (!currentUser || currentUser.role !== "practice_lead") {
+      showMessage("Only practice leads can unregister consultants.", "error");
+      return;
+    }
+
     const button = event.target;
     const capability = button.getAttribute("data-capability");
     const email = button.getAttribute("data-email");
@@ -88,26 +169,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const result = await response.json();
 
       if (response.ok) {
-        messageDiv.textContent = result.message;
-        messageDiv.className = "success";
+        showMessage(result.message, "success");
 
         // Refresh capabilities list to show updated consultants
         fetchCapabilities();
       } else {
-        messageDiv.textContent = result.detail || "An error occurred";
-        messageDiv.className = "error";
+        showMessage(result.detail || "An error occurred", "error");
       }
-
-      messageDiv.classList.remove("hidden");
-
-      // Hide message after 5 seconds
-      setTimeout(() => {
-        messageDiv.classList.add("hidden");
-      }, 5000);
     } catch (error) {
-      messageDiv.textContent = "Failed to unregister. Please try again.";
-      messageDiv.className = "error";
-      messageDiv.classList.remove("hidden");
+      showMessage("Failed to unregister. Please try again.", "error");
       console.error("Error unregistering:", error);
     }
   }
@@ -116,8 +186,13 @@ document.addEventListener("DOMContentLoaded", () => {
   registerForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const email = document.getElementById("email").value;
-    const capability = document.getElementById("capability").value;
+    if (!currentUser) {
+      showMessage("Please log in before registering expertise.", "error");
+      return;
+    }
+
+    const email = emailInput.value;
+    const capability = capabilitySelect.value;
 
     try {
       const response = await fetch(
@@ -132,31 +207,82 @@ document.addEventListener("DOMContentLoaded", () => {
       const result = await response.json();
 
       if (response.ok) {
-        messageDiv.textContent = result.message;
-        messageDiv.className = "success";
+        showMessage(result.message, "success");
         registerForm.reset();
+
+        if (currentUser && currentUser.role === "consultant") {
+          emailInput.value = currentUser.email;
+        }
 
         // Refresh capabilities list to show updated consultants
         fetchCapabilities();
       } else {
-        messageDiv.textContent = result.detail || "An error occurred";
-        messageDiv.className = "error";
+        showMessage(result.detail || "An error occurred", "error");
       }
-
-      messageDiv.classList.remove("hidden");
-
-      // Hide message after 5 seconds
-      setTimeout(() => {
-        messageDiv.classList.add("hidden");
-      }, 5000);
     } catch (error) {
-      messageDiv.textContent = "Failed to register. Please try again.";
-      messageDiv.className = "error";
-      messageDiv.classList.remove("hidden");
+      showMessage("Failed to register. Please try again.", "error");
       console.error("Error registering:", error);
     }
   });
 
+  authToggleButton.addEventListener("click", () => {
+    openLoginModal();
+  });
+
+  loginCloseButton.addEventListener("click", () => {
+    closeLoginModal();
+  });
+
+  loginModal.addEventListener("click", (event) => {
+    if (event.target === loginModal) {
+      closeLoginModal();
+    }
+  });
+
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const response = await fetch("/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: loginUsername.value,
+          password: loginPassword.value,
+        }),
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        showMessage(result.detail || "Login failed", "error");
+        return;
+      }
+
+      currentUser = result.user;
+      updateAuthUI();
+      closeLoginModal();
+      showMessage(`Welcome, ${currentUser.username}!`, "success");
+      fetchCapabilities();
+    } catch (error) {
+      showMessage("Failed to log in. Please try again.", "error");
+      console.error("Error logging in:", error);
+    }
+  });
+
+  logoutButton.addEventListener("click", async () => {
+    try {
+      await fetch("/auth/logout", { method: "POST" });
+      currentUser = null;
+      updateAuthUI();
+      showMessage("Logged out successfully.", "info");
+      fetchCapabilities();
+    } catch (error) {
+      showMessage("Failed to log out.", "error");
+      console.error("Error logging out:", error);
+    }
+  });
+
   // Initialize app
-  fetchCapabilities();
+  fetchCurrentUser().then(fetchCapabilities);
 });

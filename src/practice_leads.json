@@ -1,0 +1,18 @@
+{
+  "users": [
+    {
+      "username": "practice.lead",
+      "email": "practice.lead@slalom.com",
+      "password_hash": "pbkdf2_sha256$260000$lead-salt-2026$dada49929a7b88e5eb816515e86ea219163417840e7fe0cb46d650c655de4d6f",
+      "role": "practice_lead",
+      "practice_areas": ["*"]
+    },
+    {
+      "username": "consultant.user",
+      "email": "consultant.user@slalom.com",
+      "password_hash": "pbkdf2_sha256$260000$consultant-salt-2026$d079c4e0c5b800c8e833f9a0cf011b695c45ff68db715d3928d9f65bb67f7494",
+      "role": "consultant",
+      "practice_areas": ["Technology"]
+    }
+  ]
+}
